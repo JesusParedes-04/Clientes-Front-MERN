@@ -1,193 +1,203 @@
-import  { useState } from "react";
+import { useState, useEffect } from 'react';
+import io from 'socket.io-client';
+import clienteAxios from '../config/clienteAxios';
+
+const socket = io('http://localhost:8080'); // Make sure the URL matches your server
 
 function Clientes() {
-  const [clients, setClients] = useState([
-    { id: "", name: "", email: "", phone: "", status: "" },
+  const [clients, setClients] = useState([]);
+  const [newClient, setNewClient] = useState({ Name: '', Surname: '', Email: '', Phone: '', Status: '' });
 
-  ]);
+  useEffect(() => {
+    //Cargar Clientes 
+    loadClients();
 
-  const [newClient, setNewClient] = useState({ name: "", email: "", phone: "", status: "" });
-  const [editClient, setEditClient] = useState(null);
+    //Socket IO
+    socket.on('nuevoCliente', (cliente) => {
+      setClients([...clients, cliente]);
+    });
 
+    return () => {
+      socket.disconnect();
+    };
+  }, [clients]);
 
-
-  //Funciones que simulan agregar al cliente
-  const handleAddClient = () => {
-    if (newClient.name && newClient.email && newClient.phone && newClient.status) {
-      setClients([
-        ...clients,
-        {
-          id: Date.now(),
-          name: newClient.name,
-          email: newClient.email,
-          phone: newClient.phone,
-          status: newClient.status,
-        },
-      ]);
-      setNewClient({ name: "", email: "", phone: "", status: "" });
+  const loadClients = async () => {
+    try {
+      const response = await clienteAxios.get('/clients'); 
+      setClients(response.data);
+    } catch (error) {
+      console.error('Error loading clients:', error);
     }
   };
 
-  const handleDeleteClient = (id) => {
-    const updatedClients = clients.filter((client) => client.id !== id);
-    setClients(updatedClients);
+  const handleAddClient = async () => {
+    if (
+      newClient.Name &&
+      newClient.Surname &&
+      newClient.Email &&
+      newClient.Phone &&
+      newClient.Status
+    ) {
+      try {
+      
+        const response = await clienteAxios.post('/clients', newClient);
+        const createdClient = response.data.cliente;
+        socket.emit('clienteCreado', createdClient);
+        setNewClient({
+          Name: '',
+          Surname: '',
+          Email: '',
+          Phone: '',
+          Status: '',
+        });
+      } catch (error) {
+        console.error('Error adding the client:', error.response.data);
+      }
+    } else {
+      console.error('Please fill out all required fields.');
+    }
   };
 
-  const handleEditClient = (id) => {
-    const clientToEdit = clients.find((client) => client.id === id);
-    setEditClient(clientToEdit);
-  };
+  const handleDeleteClient = async (id) => {
+    try {
+      // Delete al server
+      await clienteAxios.delete(`/clients/${id}`); 
 
-  const handleUpdateClient = () => {
-    if (editClient && editClient.name && editClient.email && editClient.phone && editClient.status) {
-      const updatedClients = clients.map((client) =>
-        client.id === editClient.id ? editClient : client
-      );
+      const updatedClients = clients.filter((client) => client.id !== id);
       setClients(updatedClients);
-      setEditClient(null);
+    } catch (error) {
+      console.error('Error deleting the client:', error);
+    }
+  };
+
+  const handleUpdateClient = async (client) => {
+    if (client.Name && client.Surname && client.Email && client.Phone && client.Status) {
+      try {
+      // Update al server
+      await clienteAxios.put(`/clients/${client._id}`, client); 
+      } catch (error) {
+        console.error('Error updating the client:', error);
+      }
     }
   };
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Clientes</h1>
-      <table className="w-full border-collapse ">
-        <thead>
-          <tr className="bg-sky-500 text-white ">
-            <th className="border p-2">ID</th>
-            <th className="border p-2">Nombre</th>
-            <th className="border p-2">Email</th>
-            <th className="border p-2">Teléfono</th>
-            <th className="border p-2">Estado</th>
-            <th className="border p-2">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {clients.map((client) => (
-            <tr key={client.id}>
-              <td className="border p-2">{client.id}</td>
-              <td className="border p-2">
-                {editClient && editClient.id === client.id ? (
-                  <input
-                    type="text"
-                    className="w-full"
-                    value={editClient.name}
-                    onChange={(e) =>
-                      setEditClient({
-                        ...editClient,
-                        name: e.target.value,
-                      })
-                    }
-                  />
-                ) : (
-                  client.name
-                )}
-              </td>
-              <td className="border p-2">
-                {editClient && editClient.id === client.id ? (
-                  <input
-                    type="text"
-                    className="w-full"
-                    value={editClient.email}
-                    onChange={(e) =>
-                      setEditClient({
-                        ...editClient,
-                        email: e.target.value,
-                      })
-                    }
-                  />
-                ) : (
-                  client.email
-                )}
-              </td>
-              <td className="border p-2">
-                {editClient && editClient.id === client.id ? (
-                  <input
-                    type="text"
-                    className="w-full"
-                    value={editClient.phone}
-                    onChange={(e) =>
-                      setEditClient({
-                        ...editClient,
-                        phone: e.target.value,
-                      })
-                    }
-                  />
-                ) : (
-                  client.phone
-                )}
-              </td>
-              <td className="border p-2">
-                {editClient && editClient.id === client.id ? (
-                  <input
-                    type="text"
-                    className="w-full"
-                    value={editClient.status}
-                    onChange={(e) =>
-                      setEditClient({
-                        ...editClient,
-                        status: e.target.value,
-                      })
-                    }
-                  />
-                ) : (
-                  client.status
-                )}
-              </td>
-              <td className="border p-2">
-                {editClient && editClient.id === client.id ? (
-                  <>
-                    <button className="bg-blue-500 rounded-md text-white px-2 py-1 mr-2" onClick={handleUpdateClient}>Guardar</button>
-                    <button className="bg-gray-500 rounded-md text-white px-2 py-1" onClick={() => setEditClient(null)}>Cancelar</button>
-                  </>
-                ) : (
-                  <>
-                    <button className="bg-green-500 rounded-md text-white px-2 py-1 mr-2" onClick={() => handleEditClient(client.id)}>Editar</button>
-                    <button className="bg-red-500 rounded-md text-white px-2 py-1" onClick={() => handleDeleteClient(client.id)}>Eliminar</button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="mt-4">
-        <h2 className="text-lg font-semibold mb-2">Agregar Cliente</h2>
-        <div className="flex">
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold mb-2">Agregar Cliente</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
             type="text"
             placeholder="Nombre"
-            className="w-1/4 p-2 mr-2"
-            value={newClient.name}
-            onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+            value={newClient.Name}
+            onChange={(e) => setNewClient({ ...newClient, Name: e.target.value })}
+            className="border rounded py-2 px-3"
+          />
+          <input
+            type="text"
+            placeholder="Apellido"
+            value={newClient.Surname}
+            onChange={(e) => setNewClient({ ...newClient, Surname: e.target.value })}
+            className="border rounded py-2 px-3"
           />
           <input
             type="text"
             placeholder="Email"
-            className="w-1/4 p-2 mr-2"
-            value={newClient.email}
-            onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+            value={newClient.Email}
+            onChange={(e) => setNewClient({ ...newClient, Email: e.target.value })}
+            className="border rounded py-2 px-3"
           />
           <input
             type="text"
             placeholder="Teléfono"
-            className="w-1/4 p-2 mr-2"
-            value={newClient.phone}
-            onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+            value={newClient.Phone}
+            onChange={(e) => setNewClient({ ...newClient, Phone: e.target.value })}
+            className="border rounded py-2 px-3"
           />
           <input
             type="text"
             placeholder="Estado"
-            className="w-1/4 p-2 mr-2"
-            value={newClient.status}
-            onChange={(e) => setNewClient({ ...newClient, status: e.target.value })}
+            value={newClient.Status}
+            onChange={(e) => setNewClient({ ...newClient, Status: e.target.value })}
+            className="border rounded py-2 px-3"
           />
-          <button className="bg-sky-500 rounded-md text-white px-2 py-1" onClick={handleAddClient}>Agregar</button>
         </div>
+        <button onClick={handleAddClient} className="mt-2 bg-sky-500 text-white py-2 px-4 rounded">
+          Agregar
+        </button>
       </div>
+      <div className="w-full overflow-x-auto">
+  <table className="w-full border-collapse border border-gray-300">
+    <thead>
+      <tr className="bg-gray-100">
+        <th className="border border-gray-300 p-2">ID</th>
+        <th className="border border-gray-300 p-2">Nombre</th>
+        <th className="border border-gray-300 p-2">Apellido</th>
+        <th className="border border-gray-300 p-2">Email</th>
+        <th className="border border-gray-300 p-2">Teléfono</th>
+        <th className="border border-gray-300 p-2">Estado</th>
+        <th className="border border-gray-300 p-2">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {clients.map((client) => (
+        <tr key={client.id} className="hover:bg-gray-50">
+          <td className="border border-gray-300 p-2">{client._id}</td>
+          <td className="border border-gray-300 p-2">
+            <input
+              type="text"
+              value={client.Name}
+              onChange={(e) => handleUpdateClient({ ...client, Name: e.target.value })}
+              className="border rounded py-1 px-2 w-full"
+            />
+          </td>
+          <td className="border border-gray-300 p-2">
+            <input
+              type="text"
+              value={client.Surname}
+              onChange={(e) => handleUpdateClient({ ...client, Surname: e.target.value })}
+              className="border rounded py-1 px-2 w-full"
+            />
+          </td>
+          <td className="border border-gray-300 p-2">
+            <input
+              type="text"
+              value={client.Email}
+              onChange={(e) => handleUpdateClient({ ...client, Email: e.target.value })}
+              className="border rounded py-1 px-2 w-full"
+            />
+          </td>
+          <td className="border border-gray-300 p-2">
+            <input
+              type="text"
+              value={client.Phone}
+              onChange={(e) => handleUpdateClient({ ...client, Phone: e.target.value })}
+              className="border rounded py-1 px-2 w-full"
+            />
+          </td>
+          <td className="border border-gray-300 p-2">
+            <input
+              type="text"
+              value={client.Status}
+              onChange={(e) => handleUpdateClient({ ...client, Status: e.target.value })}
+              className="border rounded py-1 px-2 w-full"
+            />
+          </td>
+          <td className="border border-gray-300 p-2">
+            <button onClick={() => handleDeleteClient(client._id)} className="bg-red-500 text-white py-1 px-2 rounded">
+              Eliminar
+            </button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
     </div>
   );
 }
 
 export default Clientes;
-``

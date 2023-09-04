@@ -29,8 +29,6 @@ function App() {
             <Route index element={<Clientes/>}></Route>
           </Route>
 
-
-
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -88,7 +88,7 @@ const Register = () => {
 
         <>
 
-            <h1 className="text-sky-600 font-black text-6xl capitalize">Crea tu Cuenta</h1>
+            <h1 className="text-sky-600 font-black text-5xl text-center uppercase">Crea tu Cuenta</h1>
 
             {msg && <Alert alerta={alerta} />}
 
